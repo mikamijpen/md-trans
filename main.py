@@ -9,11 +9,13 @@ class MarkdownConverter:
     
     def __init__(self):
         # 定义转换规则的正则表达式
+        # 转换规则：
+        # 1. 行内公式 \( ... \) -> $...$
+        # 2. 块级公式 \[ ... \] -> 去掉外层符号，内容保持原样
+        # 使用[\s\S]*?以匹配跨行内容
+        # 仅定义行内公式的转换规则；块级公式将在 convert 方法中进行特殊处理
         self.patterns = [
-            # 匹配 \( 内容 \) 转换为 $内容$
-            (r'\\\(\s*(.*?)\s*\\\)', r'$\1$'),
-            # 匹配 \[ 内容 \] 转换为 $内容$
-            (r'\\\[\s*(.*?)\s*\\\]', r'$\1$')
+            (r'\\\(\s*([\s\S]*?)\s*\\\)', r'$\1$')   # 行内
         ]
     
     def convert(self, text):
@@ -30,10 +32,21 @@ class MarkdownConverter:
             
         converted_text = text
         
-        # 应用所有转换规则
+        # 1. 处理行内公式
         for pattern, replacement in self.patterns:
             converted_text = re.sub(pattern, replacement, converted_text)
-            
+
+        # 2. 处理块级公式，根据是否包含 "\\begin" 和 "\\end" 采用不同策略
+        def _replace_block(match: re.Match) -> str:
+            content = match.group(1)
+            # 如果内容中包含 \begin 和 \end，则仅去掉外层符号
+            if re.search(r'\\begin', content) and re.search(r'\\end', content):
+                return content
+            # 否则转换为行内公式
+            return f'${content}$'
+
+        converted_text = re.sub(r'\\\[\s*([\s\S]*?)\s*\\\]', _replace_block, converted_text)
+
         return converted_text
     
     def get_conversion_stats(self, original_text, converted_text):
@@ -53,11 +66,11 @@ class MarkdownConverter:
         }
         
         # 统计 \( \) 转换数量
-        inline_matches = re.findall(r'\\\(\s*.*?\s*\\\)', original_text)
+        inline_matches = re.findall(r'\\\(\s*[\s\S]*?\s*\\\)', original_text)
         stats['inline_math_converted'] = len(inline_matches)
         
         # 统计 \[ \] 转换数量
-        display_matches = re.findall(r'\\\[\s*.*?\s*\\\]', original_text)
+        display_matches = re.findall(r'\\\[\s*[\s\S]*?\s*\\\]', original_text)
         stats['display_math_converted'] = len(display_matches)
         
         stats['total_conversions'] = stats['inline_math_converted'] + stats['display_math_converted']
