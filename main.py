@@ -39,8 +39,13 @@ class MarkdownConverter:
         # 2. 处理块级公式，根据是否包含 "\\begin" 和 "\\end" 采用不同策略
         def _replace_block(match: re.Match) -> str:
             content = match.group(1)
-            # 如果内容中包含 \begin 和 \end，则仅去掉外层符号
+            # 如果内容中包含 \begin 和 \end ...
             if re.search(r'\\begin', content) and re.search(r'\\end', content):
+                # 检测是否为 matrix 系列环境（matrix, bmatrix, pmatrix, vmatrix 等）
+                if re.search(r'\\begin\{[^}]*matrix[^}]*\}', content, re.IGNORECASE):
+                    # 将外层符号替换为块级数学定界 $$ $$
+                    return f'$$\n{content}\n$$'
+                # 其他环境保持原样（去掉外层符号）
                 return content
             # 否则转换为行内公式
             return f'${content}$'
