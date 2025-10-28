@@ -47,8 +47,8 @@ class MarkdownConverter:
             content = match.group(1)
             # 如果内容中包含 \begin 和 \end ...
             if re.search(r'\\begin', content) and re.search(r'\\end', content):
-                # 检测是否为 matrix 系列环境（matrix, bmatrix, pmatrix, vmatrix 等） 或 align 系列环境
-                if re.search(r'\\begin\{[^}]*(matrix|align)[^}]*\}', content, re.IGNORECASE):
+                # 检测是否为 matrix 系列环境（matrix, bmatrix, pmatrix, vmatrix 等） 或 align  或 cases 系列环境
+                if re.search(r'\\begin\{[^}]*(matrix|align|cases)[^}]*\}', content, re.IGNORECASE):
                     # 将外层符号替换为块级数学定界 $$ $$
                     return f'$$\n{content}\n$$'
                 # 其他环境保持原样（去掉外层符号）
@@ -58,6 +58,20 @@ class MarkdownConverter:
 
         converted_text = re.sub(
             r'\\\[\s*([\s\S]*?)\s*\\\]', _replace_block, converted_text)
+
+        # 3. 针对gpt格式额外处理 ( 空格 内容 空格 ) 格式 -> $内容$
+        converted_text = re.sub(
+            r'\(\s+([^\(\)]*?)\s+\)',
+            lambda m: f'${m.group(1).strip()}$',
+            converted_text
+        )
+
+        # 4. 处理 [ 换行 内容 ] 格式 -> $内容$
+        converted_text = re.sub(
+            r'\[\s*\n([\s\S]*?)\]',
+            lambda m: f'${m.group(1).strip()}$',
+            converted_text
+        )
 
         return converted_text
 
