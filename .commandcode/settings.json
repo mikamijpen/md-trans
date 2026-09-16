@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(python -m py_compile main.py clean_md.py)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

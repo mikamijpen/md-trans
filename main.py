@@ -1,13 +1,14 @@
 import re
 import os
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
+from tkinter import scrolledtext, messagebox, filedialog
 from datetime import datetime
 import tempfile
 from pathlib import Path
 
 # 导入 Markdown -> DOCX 转换函数
 from to_word import convert_md_to_docx
+from clean_md import clean_md
 
 
 class MarkdownConverter:
@@ -246,6 +247,20 @@ class MarkdownConverterGUI:
         )
         self.word_button.pack(side='left', padx=5)
 
+        # 清理语雀 md 按钮
+        self.clean_button = tk.Button(
+            button_frame,
+            text='清理语雀md',
+            command=self.clean_yuque_md,
+            font=('Arial', 12, 'bold'),
+            bg='#FF9800',
+            fg='white',
+            padx=20,
+            pady=10,
+            cursor='hand2'
+        )
+        self.clean_button.pack(side='left', padx=5)
+
         # 清空按钮
         clear_button = tk.Button(
             button_frame,
@@ -347,6 +362,31 @@ class MarkdownConverterGUI:
         except Exception as e:
             messagebox.showerror('错误', f'Word 导出失败：{str(e)}')
             self.status_label.config(text='Word 导出失败', fg='red')
+
+    def clean_yuque_md(self):
+        """选择语雀 md 文件，清洗后保存在同目录"""
+        try:
+            src = filedialog.askopenfilename(
+                title='选择要清理的 Markdown 文件',
+                filetypes=[('Markdown', '*.md *.markdown'), ('所有文件', '*.*')],
+            )
+            if not src:
+                return
+
+            src_path = Path(src)
+            self.status_label.config(text='正在清理...', fg='orange')
+            self.root.update()
+
+            cleaned = clean_md(src_path.read_text(encoding='utf-8', errors='replace'))
+
+            dst_path = src_path.with_name(f'{src_path.stem}_cleaned.md')
+            dst_path.write_text(cleaned, encoding='utf-8')
+
+            messagebox.showinfo('清理成功', f'已保存到同目录：{dst_path.name}')
+            self.status_label.config(text=f'清理成功 - {dst_path.name}', fg='green')
+        except Exception as e:
+            messagebox.showerror('错误', f'清理失败：{str(e)}')
+            self.status_label.config(text='清理失败', fg='red')
 
     def clear_text(self):
         """清空文本输入框"""
