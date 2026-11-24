@@ -11,6 +11,56 @@ from to_word import convert_md_to_docx
 from clean_md import clean_md
 
 
+# 公式定界符：$$...$$、$...$、\(...\)、\[...\]
+_FORMULA_PATTERNS = [
+    re.compile(r"\$\$(.+?)\$\$", re.DOTALL),
+    re.compile(r"(?<!\$)\$(?!\$)(.+?)(?<!\\)\$(?!\$)", re.DOTALL),
+    re.compile(r"\\\((.+?)\\\)", re.DOTALL),
+    re.compile(r"\\\[(.+?)\\\]", re.DOTALL),
+]
+
+
+def replace_formula_symbols(text):
+    """仅替换公式内的 < 和 >：&lt;/&lt; -> \\lt，&gt;/> -> \\gt
+
+    公式定界符支持 $...$、$$...$$、\\(...\\)、\\[...\\]，
+    $ 两侧不要求有空格；代码块和行内代码里的内容不处理。
+
+    Args:
+        text (str): 输入的 markdown 文本
+
+    Returns:
+        str: 替换后的 markdown 文本
+    """
+    if not text:
+        return text
+
+    # 先占位保护围栏代码块和行内代码，避免误改
+    stashed = []
+
+    def _stash(match):
+        stashed.append(match.group(0))
+        return f'\x00{len(stashed) - 1}\x00'
+
+    text = re.sub(r'```[\s\S]*?```', _stash, text)
+    text = re.sub(r'`[^`\n]*`', _stash, text)
+
+    def _replace(match):
+        s = match.group(0)
+        # 末尾补空格，避免 a<b -> a\ltb 被当成未知命令 \ltb
+        s = s.replace('&lt;', '\\lt ').replace('&gt;', '\\gt ')
+        s = re.sub(r'(?<!\\)<', lambda _: '\\lt ', s)
+        s = re.sub(r'(?<!\\)>', lambda _: '\\gt ', s)
+        return s
+
+    for pattern in _FORMULA_PATTERNS:
+        text = pattern.sub(_replace, text)
+
+    for i, original in enumerate(stashed):
+        text = text.replace(f'\x00{i}\x00', original)
+    return text
+
+
 class MarkdownConverter:
     """处理Markdown中LaTeX语法转换的核心类"""
 
@@ -261,6 +311,20 @@ class MarkdownConverterGUI:
         )
         self.clean_button.pack(side='left', padx=5)
 
+        # 换符号按钮
+        self.symbol_button = tk.Button(
+            button_frame,
+            text='换符号',
+            command=self.replace_symbols,
+            font=('Arial', 12, 'bold'),
+            bg='#9C27B0',
+            fg='white',
+            padx=20,
+            pady=10,
+            cursor='hand2'
+        )
+        self.symbol_button.pack(side='left', padx=5)
+
         # 清空按钮
         clear_button = tk.Button(
             button_frame,
@@ -362,6 +426,32 @@ class MarkdownConverterGUI:
         except Exception as e:
             messagebox.showerror('错误', f'Word 导出失败：{str(e)}')
             self.status_label.config(text='Word 导出失败', fg='red')
+
+    def replace_symbols(self):
+        """选择 md 文件，替换公式内的 &lt;/&gt; 后保存在同目录"""
+        try:
+            src = filedialog.askopenfilename(
+                title='选择要换符号的 Markdown 文件',
+                filetypes=[('Markdown', '*.md *.markdown'), ('所有文件', '*.*')],
+            )
+            if not src:
+                return
+
+            src_path = Path(src)
+            self.status_label.config(text='正在换符号...', fg='orange')
+            self.root.update()
+
+            original = src_path.read_text(encoding='utf-8', errors='replace')
+            replaced = replace_formula_symbols(original)
+
+            dst_path = src_path.with_name(f'{src_path.stem}_symbols.md')
+            dst_path.write_text(replaced, encoding='utf-8')
+
+            messagebox.showinfo('替换成功', f'已保存到同目录：{dst_path.name}')
+            self.status_label.config(text=f'替换成功 - {dst_path.name}', fg='green')
+        except Exception as e:
+            messagebox.showerror('错误', f'换符号失败：{str(e)}')
+            self.status_label.config(text='换符号失败', fg='red')
 
     def clean_yuque_md(self):
         """选择语雀 md 文件，清洗后保存在同目录"""

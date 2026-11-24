@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Shell(python -m py_compile main.py clean_md.py)"
+      "Shell(python -m py_compile main.py clean_md.py)",
+      "Shell(python -c \"import main; s=r'''行内 $a &lt; b$ 和 $$x &gt; y$$ 以及 \\(p &lt; q\\) \\[m &gt; n\\]，公式外 &lt;b&gt; 不变，已有 \\lt 保持。'; print(main.replace_formula_symbols(s))\")",
+      "Shell(python \"C:\\Users\\Administrator\\AppData\\Local\\Temp\\commandcode\\D--new-code-tools-md-trans\\f4ca818d-0353-4930-a36a-041f83bba796\\scratchpad\\test_symbols.py\")"
     ],
     "deny": [],
     "defaultMode": "default"
